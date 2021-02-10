@@ -1,0 +1,5 @@
+[AUTH]
+CLIENT_ID=
+CLIENT_SECRET=
+REDIRECT_URI=http://localhost:8888
+SCOPE=playlist-read-private, user-read-playback-state, playlist-modify-private, playlist-modify-public
