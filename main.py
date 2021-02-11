@@ -74,6 +74,9 @@ def main():
 
         try:
             selected_playlist_input = int(input("Digite o número da playlist: "))
+            if selected_playlist_input == 0:
+                print("Parando programa")
+                sys.exit()
             selected_playlist = playlists_dict[selected_playlist_input]
 
             add_current_music_to_playlist(sp, selected_playlist)
