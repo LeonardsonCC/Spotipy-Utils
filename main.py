@@ -1,5 +1,6 @@
 #! /usr/bin/python3
 import configparser
+import sys
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
@@ -46,7 +47,6 @@ def add_current_music_to_playlist(sp, playlist):
         return False
 
 
-
 def main():
     config = load_config()
     CLIENT_ID = config['AUTH']['CLIENT_ID']
@@ -59,22 +59,40 @@ def main():
                                                            redirect_uri=REDIRECT_URI,
                                                            scope=SCOPE))
 
-    playlists = sp.current_user_playlists()
-    playlists_dict = {}
-    print("Suas playlists:")
-    for idx, item in enumerate(playlists['items']):
-        idx = idx+1
-        print("{} - {}".format(idx, item["name"]))
-        playlists_dict[idx] = {"name": item["name"], "id": item["id"]}
+    if len(sys.argv) < 2:
+        playlists = sp.current_user_playlists()
+        playlists_dict = {}
+        print("Suas playlists:")
+        for idx, item in enumerate(playlists['items']):
+            idx = idx+1
+            print("{} - {}".format(idx, item["name"]))
+            playlists_dict[idx] = {"name": item["name"], "id": item["id"]}
 
-    try:
-        selected_playlist_input = int(input("Digite o número da playlist: "))
-        selected_playlist = playlists_dict[selected_playlist_input]
+        try:
+            selected_playlist_input = int(input("Digite o número da playlist: "))
+            selected_playlist = playlists_dict[selected_playlist_input]
 
-        add_current_music_to_playlist(sp, selected_playlist)
+            add_current_music_to_playlist(sp, selected_playlist)
 
-    except ValueError:
-        print("Necessário ser um número para prosseguir")
+        except ValueError:
+            print("Necessário ser um número para prosseguir")
+    else:
+        playlists = sp.current_user_playlists()
+        playlists_dict = {}
+        playlist_input = sys.argv[1]
+
+        selected_playlist = None
+
+        for idx, item in enumerate(playlists['items']):
+            if playlist_input ==  item['name']:
+                selected_playlist = {"name": item["name"], "id": item["id"]}
+
+
+        try:
+            add_current_music_to_playlist(sp, selected_playlist)
+
+        except ValueError:
+            print("Necessário ser um número para prosseguir")
 
 
 
