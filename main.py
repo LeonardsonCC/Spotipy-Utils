@@ -1,4 +1,5 @@
 #! /usr/bin/python3
+
 import configparser
 import sys
 import spotipy
@@ -62,11 +63,14 @@ def main():
     if len(sys.argv) < 2:
         playlists = sp.current_user_playlists()
         playlists_dict = {}
+        user_name = sp.current_user()['display_name']
         print("Suas playlists:")
-        for idx, item in enumerate(playlists['items']):
-            idx = idx+1
-            print("{} - {}".format(idx, item["name"]))
-            playlists_dict[idx] = {"name": item["name"], "id": item["id"]}
+        idx = 0
+        for i, item in enumerate(playlists['items']):
+            if item['owner']['display_name'] == user_name or item['collaborative'] == True:
+                idx = idx+1
+                print("{} - {}".format(idx, item["name"]))
+                playlists_dict[idx] = {"name": item["name"], "id": item["id"]}
 
         try:
             selected_playlist_input = int(input("Digite o número da playlist: "))
