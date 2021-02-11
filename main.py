@@ -3,10 +3,48 @@ import configparser
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 
+
 def load_config():
     config = configparser.ConfigParser()
     config.read('config.ini')
     return config
+
+
+def add_current_music_to_playlist(sp, playlist):
+    try:
+        current_playing = sp.current_user_playing_track()
+
+        music_id = current_playing['item']['id']
+        music_name = current_playing['item']['name']
+    except TypeError:
+        print("Nenhuma música tocando no momento")
+        return False
+
+    should_add_to_playlist = True
+
+    playlist_id = playlist['id']
+    playlist_name = playlist['name']
+
+    limit_counter = 0
+    while True:
+        playlist_musics = sp.playlist_tracks(playlist_id, limit=100, offset=limit_counter)
+        limit_counter = limit_counter + 100
+        if len(playlist_musics['items']) > 0:
+            for idx, item in enumerate(playlist_musics['items']):
+                if music_id == item['track']['id']:
+                    should_add_to_playlist = False
+                    break
+        else:
+            break
+
+    if should_add_to_playlist:
+        sp.playlist_add_items(playlist_id, [music_id])
+        print("{} adicionada a {}".format(music_name, playlist_name))
+        return True
+    else:
+        print("{} já está na playlist {}".format(music_name, playlist_name))
+        return False
+
 
 
 def main():
@@ -20,40 +58,25 @@ def main():
                                                            client_secret=CLIENT_SECRET,
                                                            redirect_uri=REDIRECT_URI,
                                                            scope=SCOPE))
+
     playlists = sp.current_user_playlists()
-    playlist_id = None
-    playlist_name = None
-
-    current_playing = sp.current_user_playing_track()
-    music_id = current_playing['item']['id']
-    music_name = current_playing['item']['name']
-
-    should_add_to_playlist = True
-
+    playlists_dict = {}
+    print("Suas playlists:")
     for idx, item in enumerate(playlists['items']):
-        if item['name'] == "Punkson":
-            playlist_id = item['id']
-            playlist_name = item['name']
+        idx = idx+1
+        print("{} - {}".format(idx, item["name"]))
+        playlists_dict[idx] = {"name": item["name"], "id": item["id"]}
 
-            # TODO: Precisa lembrar da paginação
-            # results = 0
-            # limit_counter = 0
-            # while results is not None:
-                # playlist_musics = sp.playlist_tracks(playlist_id, limit=limit_counter+100, offset=limit_counter)
-                # if len(playlist_musics) > 0:
-                    # for idx, item in enumerate(playlist_musics['items']):
-                        # print(item['track']['name'])
-                        # if music_id == item['track']['id']:
-                            # should_add_to_playlist = False
-                            # print("Já está na playlist")
-                        # else:
-                            # results = None
-            break
+    try:
+        selected_playlist_input = int(input("Digite o número da playlist: "))
+        selected_playlist = playlists_dict[selected_playlist_input]
 
-    if should_add_to_playlist:
-        sp.playlist_add_items(playlist_id, [music_id])
+        add_current_music_to_playlist(sp, selected_playlist)
 
-    print("{} adicionada a {}".format(music_name, playlist_name))
+    except ValueError:
+        print("Necessário ser um número para prosseguir")
+
+
 
 
 if __name__ == "__main__":
