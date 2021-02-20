@@ -1,7 +1,7 @@
 # My rofi Spotify
 
 ## The application
-In this moment, all that it does is just add the current playing music in the playlist you choose, but I'll add play/pause controls, etc.
+Currently just Play/Pause playback, go Next and Back in tracks, select Playback Device, and add current playing track to a playlist.
 
 ## Install
 

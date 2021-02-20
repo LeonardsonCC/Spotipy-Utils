@@ -9,6 +9,16 @@ from spotipy.oauth2 import SpotifyOAuth
 from rofi import Rofi
 
 
+
+
+def get_device_name(device):
+    str_device = ""
+    str_device += "✅" if device["is_active"] else "❌"
+    str_device += "|" + ("🖥️" if device["type"] == "Computer" else "📱")
+    str_device += " - " + device["name"]
+    return str_device
+
+
 def get_script_path():
     script_path = os.path.dirname(os.path.realpath(__file__))
     return script_path
@@ -41,9 +51,93 @@ def add_current_music_to_playlist(sp, playlist, music):
 
     if should_add_to_playlist:
         sp.playlist_add_items(playlist_id, [music["id"]])
-        return "{} adicionada a {}".format(music["name"], playlist_name)
+        return "{} added to {}".format(music["name"], playlist_name)
     else:
-        return "{} já está na playlist {}".format(music["name"], playlist_name)
+        return "{} is already in {}".format(music["name"], playlist_name)
+
+
+def rofi_add_current_music_to_playlist(r, sp):
+    r.status("Loading your playlists...")
+    playlists_result = sp.current_user_playlists()
+    playlists = []
+    user_name = sp.current_user()['display_name']
+    for i, item in enumerate(playlists_result['items']):
+        if item['owner']['display_name'] == user_name or item['collaborative'] == True:
+            playlists.append({"name": item["name"], "id": item["id"]})
+
+    try:
+        current_playing = sp.current_user_playing_track()
+
+        music = {
+                "id": current_playing['item']['id'],
+                "name": current_playing['item']['name'],
+                "artist": current_playing['item']['artists'][0]['name']
+                }
+
+        playlists_rofi = map(lambda playlist: playlist['name'], playlists)
+        index, key = r.select(
+                'Add to', playlists_rofi, message="Playing <b>" + music["name"] + " - " + music["artist"] + "</b>")
+
+        if(key == 0):
+            selected_playlist = playlists[index]
+            r.status("Adding...")
+            result = add_current_music_to_playlist(sp, selected_playlist, music)
+            r.error(result)
+
+    except TypeError:
+        return r.error("Nothing playing...")
+    except Exception as error:
+        r.error(error.args)
+
+
+def rofi_select_device(r, sp):
+    r.status("Loading your spotify devices...")
+    try:
+        devices_result = sp.devices()
+        devices = []
+        for i, device in enumerate(devices_result['devices']):
+            print(device)
+            devices.append({
+                    "id": device["id"],
+                    "name": device["name"],
+                    "is_active": device["is_active"],
+                    "type": device["type"]
+                })
+
+
+        devices_rofi = map(lambda device: get_device_name(device), devices)
+        index, key = r.select("Select a device", devices_rofi)
+
+        if (key == 0):
+            selected_device = devices[index]
+            r.status("Selecting device...")
+            sp.transfer_playback(selected_device["id"])
+
+    except Exception as error:
+        r.error("Error when selecting device.")
+
+
+def rofi_play_pause(r, sp):
+    try:
+        if (sp.current_playback()['is_playing']):
+            sp.pause_playback()
+        else:
+            sp.start_playback()
+    except Exception:
+        r.error("Error while play/pause music")
+
+
+def rofi_next_track(r, sp):
+    try:
+        sp.next_track()
+    except Exception:
+        r.error("Error next track")
+
+def rofi_prev_track(r, sp):
+    try:
+        sp.previous_track()
+    except Exception:
+        r.error("Error previous track")
 
 
 def main():
@@ -59,54 +153,20 @@ def main():
                                                    redirect_uri=REDIRECT_URI,
                                                    scope=SCOPE,
                                                    cache_path=os.path.join(get_script_path(), ".cache")))
-    if len(sys.argv) < 2:
-        r.status("Carregando playlists...")
-        playlists_result = sp.current_user_playlists()
-        playlists = []
-        user_name = sp.current_user()['display_name']
-        for i, item in enumerate(playlists_result['items']):
-            if item['owner']['display_name'] == user_name or item['collaborative'] == True:
-                playlists.append({"name": item["name"], "id": item["id"]})
 
-        try:
-            current_playing = sp.current_user_playing_track()
-
-            music = {
-                    "id": current_playing['item']['id'],
-                    "name": current_playing['item']['name'],
-                    "artist": current_playing['item']['artists'][0]['name']
-                    }
-
-            playlists_rofi = map(lambda playlist: playlist['name'], playlists)
-            index, key = r.select(
-                    'Adicionar música a', playlists_rofi, message="Tocando <b>" + music["name"] + " - " + music["artist"] + "</b>")
-
-            if(key == 0):
-                selected_playlist = playlists[index]
-                r.status("Adicionando música...")
-                result = add_current_music_to_playlist(sp, selected_playlist, music)
-                r.error(result)
-
-        except TypeError:
-            return r.error("Nenhuma música tocando no momento")
-        except Exception as error:
-            r.error(error.args)
-    else:
-        playlists = sp.current_user_playlists()
-        playlists_dict = {}
-        playlist_input = sys.argv[1]
-
-        selected_playlist = None
-
-        for idx, item in enumerate(playlists['items']):
-            if playlist_input == item['name']:
-                selected_playlist = {"name": item["name"], "id": item["id"]}
-
-        try:
-            add_current_music_to_playlist(sp, selected_playlist)
-
-        except ValueError:
-            print("Necessário ser um número para prosseguir")
+    sp_menu_options = ["1 - Play/Payse", "2 - Next", "3 - Previous", "4 - Select a Playback Device", "5 - Add Track to Playlist"]
+    index, key = r.select("Spotify action", sp_menu_options, rofi_args=["-i"])
+    if (key == 0): # Means that something was choosed
+        if (index == 0):
+            rofi_play_pause(r, sp)
+        if (index == 1):
+            rofi_next_track(r, sp)
+        if (index == 2):
+            rofi_prev_track(r, sp)
+        if (index == 3):
+            rofi_select_device(r, sp)
+        if (index == 4):
+            rofi_add_current_music_to_playlist(r, sp)
 
 
 if __name__ == "__main__":
